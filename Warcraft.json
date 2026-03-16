@@ -1,0 +1,14 @@
+{
+    "id": "Warcraft",
+    "name": "Azeroth Balatro",
+    "author": ["Sluggly"],
+    "description": "Adding Warcraft characters to Balatro.",
+    "version": "0.0.1",
+    "prefix": "war",
+    "dependencies": [
+        "Steamodded (>=1.0.0~BETA-1016c)",
+        "Lovely (>=0.7)"
+    ],
+    "main_file": "main.lua",
+	"display_name": "Azeroth Balatro"
+}
