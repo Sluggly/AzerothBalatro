@@ -116,6 +116,7 @@ end
 -- Function to track sold joker for Conditions
 function Warcraft.Quests.on_joker_sold(sold_extra)
     if not G.consumeables then return end
+    if type(sold_extra) ~= "table" then return end
 
     for _, card in ipairs(G.consumeables.cards) do
         if card.ability.set == "Quest" then
@@ -170,7 +171,14 @@ Warcraft.Quests.RewardTypes = {
 
     all_ilvl = {
         id = "all_ilvl",
-        skip_target_check = true,
+        custom_target_check = function(ex, jokers)
+            for _, j in ipairs(jokers) do
+                if j.ability and j.ability.wow_equipment then
+                    return true
+                end
+            end
+            return false
+        end,
         gen_target = function() return pseudorandom("r_ai") > 0.8 and 2 or 1 end,
         get_text = function(ex)
             return {"All equipped Jokers gain ", "+"..ex.r_num, " Ilvl", "", "."}
@@ -210,6 +218,18 @@ Warcraft.Quests.RewardTypes = {
 
     random_edition = {
         id = "random_edition",
+        -- ADDED: Check that at least one Joker matches the required trait AND has no edition
+        custom_target_check = function(ex, jokers)
+            for _, j in ipairs(jokers) do
+                local matches_trait = j.ability and j.ability.extra and attr_matches(j.ability.extra[ex.r_attr], ex.r_target)
+                local no_edition = not j.edition or not next(j.edition)
+                
+                if matches_trait and no_edition then
+                    return true
+                end
+            end
+            return false
+        end,
         gen_target = function()
             local seed = "rw_ed_" .. (G.GAME and G.GAME.round or "init")
             return pseudorandom_element({"foil", "holo", "polychrome", "negative"}, pseudoseed(seed))
@@ -222,7 +242,11 @@ Warcraft.Quests.RewardTypes = {
         apply = function(ex, jokers)
             local valid = {}
             for _, j in ipairs(jokers) do
-                if j.ability and j.ability.extra and attr_matches(j.ability.extra[ex.r_attr], ex.r_target) then
+                -- ADDED: Added the edition check here as well to filter the random pool
+                local matches_trait = j.ability and j.ability.extra and attr_matches(j.ability.extra[ex.r_attr], ex.r_target)
+                local no_edition = not j.edition or not next(j.edition)
+                
+                if matches_trait and no_edition then
                     table.insert(valid, j)
                 end
             end
@@ -237,26 +261,28 @@ Warcraft.Quests.RewardTypes = {
         id = "create_joker",
         gen_target = function() return 1 end,
         get_text = function(ex)
-            local cat = ex.r_attr or "race"
-            local cat_display = cat:sub(1,1):upper() .. cat:sub(2)
-            return {"Open a ", ex.r_target, " Joker Pack", "", "."}
+            return {"Gain a Tag for a free ", ex.r_target, " Joker Pack", "", "."}
         end,
         apply = function(ex, jokers)
-            if #G.consumeables.cards >= G.consumeables.config.card_limit then return end
+            -- Create our custom tag
+            local new_tag = Tag('tag_war_faction_pack')
+            
+            -- Inject the Quest's filter requirements directly into the Tag's memory
+            new_tag.ability = new_tag.ability or {}
+            new_tag.ability.warcraft_filter = {
+                attr_key = ex.r_attr,
+                target = ex.r_target,
+                already_shown = {}
+            }
+            
+            add_tag(new_tag)
+            play_sound('generic1', 0.9 + math.random()*0.2, 0.8)
+            play_sound('holo1', 1.2 + math.random()*0.2, 0.4)
 
-            G.E_MANAGER:add_event(Event({
-                func = function()
-                    -- Create the booster pack card
-                    local pack = create_card("Booster", G.consumeables, nil, nil, nil, nil, "p_war_warcraft_faction_pack_1", "quest")
-                    -- Store the filter on the pack so create_card can use it
-                    pack.ability.extra.attr_key = ex.r_attr
-                    pack.ability.extra.target = ex.r_target
-                    pack:add_to_deck()
-                    G.consumeables:emplace(pack)
-                    pack:juice_up()
-                    return true
-                end
-            }))
+            -- If we are already in the shop, force it to trigger immediately!
+            if G.STATE == G.STATES.SHOP then
+                new_tag:apply_to_run({type = 'immediate'})
+            end
         end
     },
 
@@ -486,10 +512,15 @@ function Warcraft.create_quest(args)
             -- Check if the Reward has a valid target
 
             if ex.r_type == "create_joker" then
-                return #G.jokers.cards < G.jokers.config.card_limit
+                return G.STATE == G.STATES.SHOP
             end
 
             local rw_def = Warcraft.Quests.RewardTypes[ex.r_type]
+
+            if rw_def and rw_def.custom_target_check then
+                return rw_def.custom_target_check(ex, jokers)
+            end
+            
             if rw_def and rw_def.skip_target_check then
                 return true
             end

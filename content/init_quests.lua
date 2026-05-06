@@ -514,7 +514,7 @@ Warcraft.create_quest({
 Warcraft.create_quest({
     name = "Priory of the Sacred Flame",
     index = 50,
-    combo_joker = {"Xal'atath"},
+    combo_character = {"Xal'atath"},
     ally_faction = {"Alliance", "Horde"},
     ally_race = {"Human", "Blood Elf"},
     enemy_race = {"Human","Void Elf"},
@@ -534,7 +534,7 @@ Warcraft.create_quest({
 Warcraft.create_quest({
     name = "Naxxramas",
     index = 52,
-    combo_character = {"Kel'Thuzad", "Patchwerk", "Sapphiron", "Baron Rivendare"},
+    combo_character = {"Kel'Thuzad", "Patchwerk", "Saphiron", "Baron Rivendare"},
     ally_faction = {"Scourge"},
     enemy_faction = {"Alliance", "Horde"},
     ally_race = {"Undead", "Human"},

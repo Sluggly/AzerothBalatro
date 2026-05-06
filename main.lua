@@ -4,12 +4,39 @@
 -- the Free Software Foundation, either version 3 of the License.
 
 SMODS.current_mod.process_loc_text = function()
-    local ten_vars = "{V:1}#1#{}{V:2}#2#{}{V:3}#3#{}{V:4}#4#{}{V:5}#5#{}{V:6}#6#{}{V:7}#7#{}{V:8}#8#{}{V:9}#9#{}{V:10}#10#{}"
+    -- Safely call our newly refactored badges localization generator!
+    if Warcraft and Warcraft.Badges and Warcraft.Badges.register_loc_text then
+        Warcraft.Badges.register_loc_text()
+    end
+
+    -- Register booster pack names
+    G.localization.descriptions.Booster = G.localization.descriptions.Booster or {}
     
-    SMODS.process_loc_text(G.localization.descriptions.Other, 'war_faction', { name = "Faction", text = {ten_vars} })
-    SMODS.process_loc_text(G.localization.descriptions.Other, 'war_race', { name = "Race", text = {ten_vars} })
-    SMODS.process_loc_text(G.localization.descriptions.Other, 'war_class', { name = "Class", text = {ten_vars} })
-    SMODS.process_loc_text(G.localization.descriptions.Other, 'war_weapon', { name = "Weapon", text = {ten_vars} })
+    SMODS.process_loc_text(G.localization.descriptions.Booster, 'p_war_quest_pack_jumbo', {
+        name = "Jumbo Quest Pack",
+        text = { "Choose {C:attention}#1#{} of up to", "{C:attention}#2#{} Quest cards" }
+    })
+    
+    SMODS.process_loc_text(G.localization.descriptions.Booster, 'p_war_equipment_pack', {
+        name = "Equipment Pack",
+        text = { "Choose {C:attention}#1#{} of up to", "{C:attention}#2#{} Equipment cards" }
+    })
+    
+    SMODS.process_loc_text(G.localization.descriptions.Booster, 'p_war_warcraft_faction_pack', {
+        name = "Warcraft Joker Pack",
+        text = { "Choose {C:attention}#1#{} of up to", "{C:attention}#2#{} Jokers" }
+    })
+
+    SMODS.process_loc_text(G.localization.descriptions.Other, 'alarmobot_safe', {
+        name = "Intruder Alert!",
+        text = {
+            "Spawned by {C:attention}Alarm-o-Bot{}",
+            "{C:green}No penalty active!{}",
+            " ",
+            "{C:red}Kill Condition:{}",
+            "Discard or Play a {C:attention}#2#{}"
+        }
+    })
 end
 
 SMODS.current_mod.optional_features = function()
@@ -18,58 +45,51 @@ SMODS.current_mod.optional_features = function()
     }
 end
 
+local function load_mod_file(path)
+    local fn, err = SMODS.load_file(path)
+    if err then
+        sendDebugMessage("ERROR loading " .. path .. ": " .. tostring(err))
+        return
+    end
+    fn()
+end
+
 --- File: main.lua ---
 if SMODS.current_mod then
     sendDebugMessage("Azeroth Balatro Mod : Loading all mod files...")
     Warcraft = Warcraft or {}
 
-    local conf, err = SMODS.load_file("config.lua")
-    if err then sendDebugMessage("ERROR loading config.lua: " .. tostring(err)) else conf() end
+    warcraft_config = SMODS.current_mod.config
 
-    local utils, err = SMODS.load_file("functions/utils.lua")
-    if err then sendDebugMessage("ERROR loading utils.lua: " .. tostring(err)) else utils() end
-
-    local badges, err = SMODS.load_file("functions/badges.lua")
-    if err then sendDebugMessage("ERROR loading badges.lua: " .. tostring(err)) else badges() end
-
-    local debug, err = SMODS.load_file("debug.lua")
-    if err then sendDebugMessage("ERROR loading debug.lua: " .. tostring(err)) else debug() end
-
-    assert(load(SMODS.load_file('functions/atlas.lua')))()
-    Warcraft.Atlas.register_all()
-
-    local packs, err = SMODS.load_file("content/packs.lua")
-    if err then sendDebugMessage("ERROR loading packs.lua: " .. tostring(err)) else packs() end
-
-    local equip_logic, err = SMODS.load_file("functions/equipment.lua")
-    if err then sendDebugMessage("ERROR loading equipment.lua: " .. tostring(err)) else equip_logic() end
-
-    local equipments, err = SMODS.load_file("content/init_equipments.lua")
-    if err then sendDebugMessage("ERROR loading init_equipments.lua: " .. tostring(err)) else equipments() end
-
-    local quest_logic, err = SMODS.load_file("functions/quests.lua")
-    if err then sendDebugMessage("ERROR loading quests.lua: " .. tostring(err)) else quest_logic() end
-
-    local quests, err = SMODS.load_file("content/init_quests.lua")
-    if err then sendDebugMessage("ERROR loading init_quests.lua: " .. tostring(err)) else quests() end
-
-    local joker_logic, err = SMODS.load_file("functions/jokers.lua")
-    if err then sendDebugMessage("ERROR loading jokers.lua: " .. tostring(err)) else joker_logic() end
-
-    local content, err = SMODS.load_file("content/init_jokers.lua")
-    if err then sendDebugMessage("ERROR loading init_jokers.lua: " .. tostring(err)) else content() end
-
-    local wrapper, err = SMODS.load_file("functions/enemies.lua")
-    if err then sendDebugMessage("ERROR loading enemies.lua: " .. tostring(err)) else wrapper() end
-
-    local enemies, err = SMODS.load_file("content/init_enemies.lua")
-    if err then sendDebugMessage("ERROR loading init_enemies.lua: " .. tostring(err)) else enemies() end
-
-    local wrapper, err = SMODS.load_file("functions/hooks.lua")
-    if err then sendDebugMessage("ERROR loading hooks.lua: " .. tostring(err)) else wrapper() end
-
-    local decks, err = SMODS.load_file("content/decks.lua")
-    if err then sendDebugMessage("ERROR loading decks.lua: " .. tostring(err)) else decks() end
+    load_mod_file("functions/utils.lua")
+    load_mod_file("functions/constants.lua")
+    load_mod_file("functions/badges.lua")
+    load_mod_file("debug.lua")
+    load_mod_file("functions/atlas.lua")
+    load_mod_file("functions/packs.lua")
+    load_mod_file("content/init_packs.lua")
+    load_mod_file("content/other_packs.lua")
+    load_mod_file("functions/tags.lua")
+    load_mod_file("content/init_tags.lua")
+    load_mod_file("functions/stickers.lua")
+    load_mod_file("functions/equipment.lua")
+    load_mod_file("content/init_equipments.lua")
+    load_mod_file("functions/mounts.lua")
+    load_mod_file("content/init_mounts.lua")
+    load_mod_file("functions/spells.lua")
+    load_mod_file("content/init_spells.lua")
+    load_mod_file("functions/quests.lua")
+    load_mod_file("content/init_quests.lua")
+    load_mod_file("content/darkmoon_prizes.lua")
+    load_mod_file("functions/jokers.lua")
+    load_mod_file("content/init_jokers.lua")
+    load_mod_file("content/other_jokers.lua")
+    load_mod_file("functions/enemies.lua")
+    load_mod_file("content/init_enemies.lua")
+    load_mod_file("content/vouchers.lua")
+    load_mod_file("functions/decks.lua")
+    load_mod_file("content/init_decks.lua")
+    load_mod_file("functions/hooks.lua")
     
     sendDebugMessage("Azeroth Balatro Mod : Mod loading done !")
 end

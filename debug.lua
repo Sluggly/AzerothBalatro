@@ -1,6 +1,5 @@
-warcraft_config.debug_mode = false
-
-if not SMODS.current_mod.config.debug_mode then return end
+local conf = SMODS.current_mod.config
+if not conf.debug_mode then return end
 
 local game_init = Game.init_game_object
 function Game:init_game_object()

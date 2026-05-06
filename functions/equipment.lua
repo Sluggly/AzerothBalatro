@@ -32,6 +32,7 @@ function Warcraft.attempt_ilvl_up(card)
         message = "Item Up!",
         colour = G.C.GOLD
     })
+    Warcraft.sync_ui_elements(card)
 end
 
 -- FACTORY: Create Equipment
@@ -116,28 +117,6 @@ function Warcraft.create_equipment(args)
             if type(stats) ~= "table" then stats = { stats } end
             table.insert(stats, ilvl)
 
-            -- Helper: resolve badge color directly from G.C
-            local function get_badge_color(val)
-                local lookup = val:gsub(" ", "_")
-                return G.C["WAR_" .. string.upper(lookup)] or G.C.UI.TEXT_DARK
-            end
-
-            -- Helper: find a joker's center by name and return its first race color
-            local function get_combo_joker_color(joker_name)
-                for _, center in pairs(G.P_CENTERS) do
-                    if center.name == joker_name and center.set == "Joker" then
-                        if center.config and center.config.extra and center.config.extra.race then
-                            local race = center.config.extra.race
-                            local first_race = type(race) == "table" and race[1] or race
-                            if first_race then
-                                return get_badge_color(first_race)
-                            end
-                        end
-                    end
-                end
-                return G.C.UI.TEXT_DARK
-            end
-
             -- Helper: build a requirement row as direct UI nodes
             local function make_req_row(label, list)
                 if not list or #list == 0 then return nil end
@@ -154,7 +133,7 @@ function Warcraft.create_equipment(args)
                 for i, val in ipairs(list) do
                     table.insert(nodes, { n = G.UIT.T, config = {
                         text   = val,
-                        colour = get_badge_color(val),
+                        colour = Warcraft.get_badge_color(val),
                         scale  = 0.30
                     }})
                     if i < #list then
@@ -184,7 +163,7 @@ function Warcraft.create_equipment(args)
                 for i, joker_name in ipairs(list) do
                     table.insert(nodes, { n = G.UIT.T, config = {
                         text   = joker_name,
-                        colour = get_combo_joker_color(joker_name),
+                        colour = Warcraft.get_joker_color(joker_name),
                         scale  = 0.30
                     }})
                     if i < #list then
@@ -319,6 +298,8 @@ function Warcraft.Equipment.attach(joker, equipment_key, starting_ilvl)
     joker.sell_cost = (joker.sell_cost or 0) + 5
     joker:calculate_joker({first_hand_drawn = true})
     
+    Warcraft.sync_ui_elements(joker)
+
     local msg = is_combo and "COMBO!" or "Equipped!"
     local col = is_combo and G.C.PURPLE or G.C.GOLD
     

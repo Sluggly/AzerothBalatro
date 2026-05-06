@@ -3,22 +3,40 @@ version = "0.0.1"
 dump_lua = true
 priority = 0
 
-# 1. Load Config logic
+# Load Config logic
 [[patches]]
 [patches.module]
 source = "main.lua"
 before = "main.lua"
 name = "warcraft_mod"
 
-# 2. Logic to remove Vanilla Jokers
+# Logic to remove Vanilla Jokers
 [[patches]]
 [patches.pattern]
 target = "functions/common_events.lua"
 pattern = "if v.yes_pool_flag and not G.GAME.pool_flags[v.yes_pool_flag] then add = nil end"
 position = "after"
 payload = '''
-if v.set == 'Joker' and not v.is_warcraft and warcraft_config and warcraft_config.remove_vanilla_jokers then 
+local war_conf = (SMODS.Mods and SMODS.Mods["Warcraft"] and SMODS.Mods["Warcraft"].config) or {}
+if v.set == 'Joker' and not v.is_warcraft and war_conf.remove_vanilla_jokers then 
     add = nil 
+end
+'''
+match_indent = true
+
+# Logic to append tooltips to playing cards natively
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = "local info_queue = {}"
+position = "after"
+payload = '''
+if card and type(card) == 'table' and card.ability and (card.ability.set == "Default" or card.ability.set == "Enhanced") then
+    if card.ability.extra and type(card.ability.extra) == "table" and card.ability.extra.is_warcraft then
+        if Warcraft and Warcraft.Badges and Warcraft.Badges.append_tooltips then
+            Warcraft.Badges.append_tooltips(info_queue, card)
+        end
+    end
 end
 '''
 match_indent = true

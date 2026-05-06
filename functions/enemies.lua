@@ -8,6 +8,22 @@ Warcraft.Enemies.Pools = {
     boss = {}
 }
 
+Warcraft.Enemies.HandContains = {
+    ["High Card"]      = {"High Card", "Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush", "Five of a Kind", "Flush House", "Flush Five"},
+    ["Pair"]           = {"Pair", "Two Pair", "Full House", "Flush House"},
+    ["Two Pair"]       = {"Two Pair"},
+    ["Three of a Kind"]= {"Three of a Kind", "Full House", "Five of a Kind", "Flush House", "Flush Five"},
+    ["Straight"]       = {"Straight", "Straight Flush", "Royal Flush"},
+    ["Flush"]          = {"Flush", "Straight Flush", "Royal Flush", "Flush House", "Flush Five"},
+    ["Full House"]     = {"Full House", "Flush House"},
+    ["Four of a Kind"] = {"Four of a Kind", "Five of a Kind", "Flush House", "Flush Five"},
+    ["Straight Flush"] = {"Straight Flush", "Royal Flush"},
+    ["Royal Flush"]    = {"Royal Flush"},
+    ["Five of a Kind"] = {"Five of a Kind", "Flush Five"},
+    ["Flush House"]    = {"Flush House"},
+    ["Flush Five"]     = {"Flush Five"},
+}
+
 -- List of catagories that can be used to kill enemies
 Warcraft.Enemies.KillPools = {
     rank = { pool = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"}, min_ante = -10 },
@@ -112,14 +128,18 @@ function Warcraft.Enemies.is_card_match(card, category, value)
 end
 
 -- Check if card or played hand fulfills Kill Condition
-function Warcraft.Enemies.check_kill_condition(req, cards, hand_name)
+function Warcraft.Enemies.check_kill_condition(req, cards, poker_hands)
     if not req then return false end
 
     -- Handle Hand Type
     if req.category == "hand_type" then
-        if (hand_name == req.value) then return true end
-        if not poker_hands then return false end
-        return poker_hands[req.value] and next(poker_hands[req.value]) ~= nil
+        local satisfying_hands = Warcraft.Enemies.HandContains[req.value] or {req.value}
+        for _, h_name in ipairs(satisfying_hands) do
+            if poker_hands[h_name] and next(poker_hands[h_name]) then
+                return true
+            end
+        end
+        return false
     end
 
     -- Handle Card-specific checks
@@ -176,6 +196,9 @@ function Warcraft.Enemies.calculate(self, card, context)
     -- PENALTY LOGIC (Either Hand Type or Specific Card Counting)
     -- =====================================
     if context.joker_main then
+
+        -- Spawned by Alarm-o-bot, no effect
+        if card.ability.extra.alarmobot_spawned then return end
 
         -- Mal'Ganis effect to cancel penalty
         if Warcraft.Enemies.try_malganis_absorb(card) then
@@ -349,7 +372,17 @@ function Warcraft.create_enemy(args)
 
     local auto_loc_vars = args.loc_vars or function(self, info_queue, card)
         local ex = card.ability.extra
-        return { vars = { args.rarity, Warcraft.Enemies.get_req_text(ex.kill_req), ex.target_name } }
+        
+        -- Store the variables so we can pass them to either text block
+        local req_text = Warcraft.Enemies.get_req_text(ex.kill_req)
+        local vars = { args.rarity, req_text, ex.target_name }
+        
+        -- If it was spawned by Alarm-o-Bot, override the description text but KEEP the vars!
+        if ex and ex.alarmobot_spawned then
+            return { key = 'alarmobot_safe', set = 'Other', vars = vars }
+        end
+        
+        return { vars = vars }
     end
 
     SMODS.Joker {
@@ -361,7 +394,7 @@ function Warcraft.create_enemy(args)
         cost = 0,
         
         in_pool = function(self) 
-            return G.GAME.round_resets.ante >= self.config.extra.min_ante
+            return false
         end,
         discovered = true,
         
